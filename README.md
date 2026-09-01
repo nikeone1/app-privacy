@@ -1,8 +1,7 @@
-# Shopify app privacy policies
+# App privacy pages
 
-Public HTTPS pages for App Store listings (no login).
+Hosted at https://nikeone1.github.io/app-privacy/
 
-- Filter Locale Bridge: `/filter-locale-bridge/`
-- Complement Bridge: `/complement-bridge/`
-
-Support: molyneuxnicky@gmail.com
+- [Filter Locale Bridge](https://nikeone1.github.io/app-privacy/filter-locale-bridge/)
+- [Complement Bridge](https://nikeone1.github.io/app-privacy/complement-bridge/)
+- [FLB demo screencast](https://nikeone1.github.io/app-privacy/videos/filter-locale-bridge.html)
