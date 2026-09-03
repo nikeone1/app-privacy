@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Filter Locale Bridge — embedded handoff proof (review items 2.1.3 / 1.2.2 / 2.1.1)</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem 4rem; color: #212B36; line-height: 1.5; }
+    h1 { font-size: 1.45rem; margin-bottom: .25rem; }
+    h2 { font-size: 1.15rem; margin-top: 2rem; }
+    .muted { color: #637381; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    .panel { border: 1px solid #d2d5d8; border-radius: 12px; overflow: hidden; background: #fff; }
+    .panel h3 { margin: 0; padding: .75rem 1rem; background: #f6f6f7; font-size: .95rem; }
+    .panel.bad h3 { background: #fee9e8; color: #8e1f0b; }
+    .panel.good h3 { background: #cdfee1; color: #0c5132; }
+    iframe { width: 100%; height: 220px; border: 0; background: #fafafa; }
+    img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e3e3e3; }
+    video { width: 100%; height: auto; background: #000; border-radius: 8px; }
+    code { background: #f6f6f7; padding: 0 .2em; border-radius: 4px; }
+    .banner { background: #fff3cd; border: 1px solid #e6c35c; padding: .75rem 1rem; border-radius: 8px; }
+    ul { padding-left: 1.2rem; }
+    a { color: #0b5fff; }
+  </style>
+</head>
+<body>
+  <h1>Filter Locale Bridge — proof of resolution</h1>
+  <p class="muted">Paste this URL into Partner review items <strong>2.1.3 UI</strong>, <strong>1.2.2 Billing API</strong>, and <strong>2.1.1 critical errors</strong>.</p>
+  <p class="banner"><strong>Do not resubmit</strong> until Nicky marks all three items resolved and Nikeone says go.</p>
+
+  <h2>Root cause</h2>
+  <p>
+    Embedded <strong>Continue to Shopify Approve charge</strong> (and any other
+    <code>admin.shopify.com</code> handoff) issued a <strong>302</strong> into the app iframe.
+    Admin sends <code>X-Frame-Options: DENY</code>, so the iframe showed
+    <em>“admin.shopify.com refused to connect”</em>. Same class of failure on Billing / Mappings
+    when in-app links dropped <code>shop</code> / <code>host</code> / <code>embedded</code>.
+  </p>
+
+  <h2>What we changed</h2>
+  <ul>
+    <li>Approve-charge now returns <strong>200 HTML</strong> with App Bridge + <code>window.open(url, "_top")</code> (never a 302 to Admin inside the iframe).</li>
+    <li>Billing <code>returnUrl</code> is the Admin re-embed URL so the merchant lands back in the iframe after Approve.</li>
+    <li>In-app Billing / Mappings links keep <code>shop</code>, <code>host</code>, <code>embedded</code>, <code>id_token</code>.</li>
+    <li>Live on Fly: <a href="https://filter-locale-bridge.fly.dev">https://filter-locale-bridge.fly.dev</a> — image <code>deployment-01M1JEA6V89CF8Q0TSAP117RK3</code> (Thu 3 Sep 2026 02:32 BST; includes the handoff fix).</li>
+  </ul>
+
+  <h2>Interactive demo (iframe)</h2>
+  <p class="muted">Left is the old 302 (the Partner screenshot). Right is the HTML Fly now returns instead.</p>
+  <div class="grid">
+    <div class="panel bad">
+      <h3>Before — 302 admin.shopify.com into the iframe</h3>
+      <iframe src="https://admin.shopify.com/" title="Old behaviour: admin.shopify.com refused to connect"></iframe>
+    </div>
+    <div class="panel good">
+      <h3>After — 200 exit-iframe HTML (App Bridge / target=_top)</h3>
+      <iframe src="./exitiframe-sample.html" title="New behaviour: Opening Shopify Continue _top"></iframe>
+    </div>
+  </div>
+  <p class="muted">
+    Demo Continue opens a stand-in Approve page on this origin so the proof stays here.
+    Production uses the real Shopify <code>confirmationUrl</code> and always auto-runs
+    <code>window.open(confirmationUrl, "_top")</code>.
+  </p>
+
+  <h2>Before / after stills</h2>
+  <div class="grid">
+    <div>
+      <p><strong>Before</strong> — <code>admin.shopify.com refused to connect</code> when Approve charge 302'd into the iframe.</p>
+      <img src="./proof-before.png" alt="Before: admin.shopify.com refused to connect"/>
+    </div>
+    <div>
+      <p><strong>After</strong> — 200 HTML with Opening Shopify… and Continue <code>target=_top</code>.</p>
+      <img src="./proof-after.png" alt="After: Opening Shopify Continue target=_top"/>
+    </div>
+  </div>
+  <p><strong>Break-out stand-in</strong> (Continue target=_top lands here in the demo):</p>
+  <img src="./proof-approve.png" alt="Approve charge demo stand-in after target=_top breakout"/>
+
+  <h2>Screencast</h2>
+  <p class="muted">Billing page, Approve-charge path without refused-to-connect, Mappings still embedded.</p>
+  <video controls playsinline src="./handoff-fix.mp4"></video>
+
+  <h2>Screenshots (real Partner-dev embedded admin)</h2>
+  <p class="muted">Store <code>filter-locale-bridge-dev.myshopify.com</code> — app loaded inside Shopify admin, not as a top-level Fly page.</p>
+  <div class="grid">
+    <div>
+      <p><strong>Billing</strong> — $29 / 30 days, Shopify Billing API, no refused-to-connect chrome.</p>
+      <img src="./billing.png" alt="Embedded Billing page in Shopify admin"/>
+    </div>
+    <div>
+      <p><strong>Mappings</strong> — mappings list / new mapping form still inside the admin iframe.</p>
+      <img src="./map.png" alt="Embedded Mappings page in Shopify admin"/>
+    </div>
+  </div>
+  <p><strong>Filter health</strong> (embedded):</p>
+  <img src="./health.png" alt="Embedded Filter health page in Shopify admin"/>
+
+  <h2>Live checks</h2>
+  <ul>
+    <li>App: <a href="https://filter-locale-bridge.fly.dev">https://filter-locale-bridge.fly.dev</a> (HTTP 200, App Bridge script in <code>&lt;head&gt;</code>)</li>
+    <li>HMAC: POST <code>/webhooks/shop/redact</code> without signature → 401 Unauthorized</li>
+    <li>Exact production HTML sample: <a href="./exitiframe-production-sample.html">exitiframe-production-sample.html</a></li>
+  </ul>
+</body>
+</html>
